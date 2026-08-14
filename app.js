@@ -469,7 +469,6 @@
 
   // State Variables
   let modulesList = JSON.parse(localStorage.getItem("indiamart_qa_modules_v3")) || DEFAULT_MODULES;
-  let outageBugsLogs = JSON.parse(localStorage.getItem("indiamart_outage_bugs")) || [];
   let currentCategory = "ALL";
 
   // DOM Elements
@@ -477,15 +476,13 @@
   const refreshBtn = document.getElementById("refreshBtn");
   const runAuditBtn = document.getElementById("runAuditBtn");
   const configBtn = document.getElementById("configBtn");
-  const promptConfigBtn = document.getElementById("promptConfigBtn");
-  const apiPromptCard = document.getElementById("apiPromptCard");
 
   // Metrics DOM
   const statMonitoredPages = document.getElementById("statMonitoredPages");
   const statUptimeRate = document.getElementById("statUptimeRate");
   const statActiveOutages = document.getElementById("statActiveOutages");
   const statOutageSub = document.getElementById("statOutageSub");
-  const statTotalBugs = document.getElementById("statTotalBugs");
+  const statTotalShifts = document.getElementById("statTotalShifts");
 
   // Tab DOM
   const tabBtns = document.querySelectorAll(".tab-btn");
@@ -499,12 +496,6 @@
   const healthTableBody = document.getElementById("healthTableBody");
   const healthTabBadge = document.getElementById("healthTabBadge");
 
-  // Bugs Table DOM
-  const ticketsTableBody = document.getElementById("ticketsTableBody");
-  const bugsTabBadge = document.getElementById("bugsTabBadge");
-  const bugsSearchInput = document.getElementById("bugsSearchInput");
-  const filterPriority = document.getElementById("filterPriority");
-
   // URL Config DOM
   const addUrlForm = document.getElementById("addUrlForm");
   const urlListContainer = document.getElementById("urlListContainer");
@@ -514,10 +505,6 @@
   const closeModalBtn = document.getElementById("closeModalBtn");
   const cancelConfigBtn = document.getElementById("cancelConfigBtn");
   const saveConfigBtn = document.getElementById("saveConfigBtn");
-  const ownerApiKeyInput = document.getElementById("ownerApiKey");
-  const toggleKeyBtn = document.getElementById("toggleKeyBtn");
-  const ownerOpUrlInput = document.getElementById("ownerOpUrl");
-  const ownerN8nBugLoggerUrlInput = document.getElementById("ownerN8nBugLoggerUrl");
   const ownerN8nAuditTriggerUrlInput = document.getElementById("ownerN8nAuditTriggerUrl");
   const modalStatusMsg = document.getElementById("modalStatusMsg");
 
@@ -530,24 +517,11 @@
     setupEventListeners();
     setupConfigModal();
     setupEditModal();
-    checkApiKeyBanner();
     renderModulesTable();
     renderUrlConfigList();
     updateMetrics();
-    renderBugsTable();
     fetchScheduleSummary();
     setInterval(fetchScheduleSummary, 10000);
-  }
-
-  function checkApiKeyBanner() {
-    const apiKey = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
-    if (apiPromptCard) {
-      if (apiKey && apiKey.trim().length > 0) {
-        apiPromptCard.classList.add("hidden");
-      } else {
-        apiPromptCard.classList.remove("hidden");
-      }
-    }
   }
 
   function setupTheme() {
@@ -1058,72 +1032,20 @@
           <td style="font-size:0.8rem; color:var(--text-muted);">${mod.lastChecked}</td>
           <td>
             <div style="display:flex; gap:0.3rem;">
-              ${!mod.isHealthy ? `
-                <button onclick="triggerAutoBug('${mod.id}')" class="btn" style="padding:0.25rem 0.5rem; font-size:0.75rem; background-color:var(--status-red-bg); color:var(--status-red); border:1px solid var(--status-red);">
-                  🐛 Log Outage Bug
-                </button>
-              ` : `
-                <button onclick="simulateIssue('${mod.id}', 'soft404')" class="nav-btn" style="padding:0.25rem 0.4rem; font-size:0.7rem;" title="Simulate Soft 404">
-                  🧪 Test Soft404
-                </button>
-                <button onclick="simulateIssue('${mod.id}', '404')" class="nav-btn" style="padding:0.25rem 0.4rem; font-size:0.7rem;" title="Simulate 404">
-                  🧪 Test 404
-                </button>
-              `}
+              <button onclick="simulateIssue('${mod.id}', '200')" class="nav-btn" style="padding:0.25rem 0.4rem; font-size:0.7rem;" title="Simulate 200 OK">
+                🟢 Test 200
+              </button>
+              <button onclick="simulateIssue('${mod.id}', 'soft404')" class="nav-btn" style="padding:0.25rem 0.4rem; font-size:0.7rem;" title="Simulate Soft 404">
+                🧪 Test Soft404
+              </button>
+              <button onclick="simulateIssue('${mod.id}', '404')" class="nav-btn" style="padding:0.25rem 0.4rem; font-size:0.7rem;" title="Simulate 404">
+                🧪 Test 404
+              </button>
             </div>
           </td>
         </tr>
       `;
     }).join("");
-  }
-
-  window.triggerAutoBug = triggerAutoBugForModule;
-
-  // =====================================================
-  // RENDER OUTAGE BUGS TABLE
-  // =====================================================
-
-  function renderBugsTable() {
-    const searchVal = bugsSearchInput.value.toLowerCase().trim();
-
-    let filtered = outageBugsLogs.filter(ticket => {
-      if (searchVal) {
-        const matchTitle = (ticket.title || "").toLowerCase().includes(searchVal);
-        const matchProj = (ticket.projectName || "").toLowerCase().includes(searchVal);
-        const matchUrl = (ticket.url || "").toLowerCase().includes(searchVal);
-        if (!matchTitle && !matchProj && !matchUrl) return false;
-      }
-      return true;
-    });
-
-    bugsTabBadge.textContent = `${filtered.length} Outages`;
-    statTotalBugs.textContent = filtered.length;
-
-    if (filtered.length === 0) {
-      ticketsTableBody.innerHTML = `
-        <tr>
-          <td colspan="8" class="text-center" style="padding: 2.5rem; color: var(--text-secondary);">
-            🟢 No Page Outages / 404 / 5xx bugs logged yet.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    ticketsTableBody.innerHTML = filtered.map(t => `
-      <tr>
-        <td><strong>#${t.id}</strong></td>
-        <td style="font-size:0.8rem; color:var(--text-muted);">${new Date(t.createdAt).toLocaleString()}</td>
-        <td><span class="badge badge-im">🤖 ${t.qaName}</span></td>
-        <td><strong>📁 ${escapeHtml(t.projectName)}</strong></td>
-        <td>${escapeHtml(t.title)}</td>
-        <td><span class="badge" style="background-color:var(--status-red-bg); color:var(--status-red); border:1px solid rgba(239, 68, 68, 0.3);">Page Down</span></td>
-        <td><span class="text-red" style="font-weight:700;">High</span></td>
-        <td>
-          <a href="${t.ticketUrl || '#'}" target="_blank" class="nav-btn" style="padding:0.25rem 0.5rem; font-size:0.75rem;">Open Ticket ↗</a>
-        </td>
-      </tr>
-    `).join("");
   }
 
   // =====================================================
@@ -1138,6 +1060,7 @@
     statMonitoredPages.textContent = total;
     statUptimeRate.textContent = `${uptime}%`;
     statActiveOutages.textContent = outages;
+    if (statTotalShifts) statTotalShifts.textContent = 4;
 
     if (outages > 0) {
       statActiveOutages.className = "metric-value text-red";
@@ -1235,69 +1158,38 @@
   }
 
   function setupConfigModal() {
-    const apiKey = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
-    if (!apiKey) {
-      apiPromptCard.classList.remove("hidden");
-    } else {
-      apiPromptCard.classList.add("hidden");
+    if (configBtn) configBtn.addEventListener("click", openModal);
+    if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
+    if (cancelConfigBtn) cancelConfigBtn.addEventListener("click", closeModal);
+
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener("click", () => {
+        const auditUrl = ownerN8nAuditTriggerUrlInput ? ownerN8nAuditTriggerUrlInput.value.trim() : AUDIT_TRIGGER_API;
+
+        localStorage.setItem("im_qa_n8n_audit_url", auditUrl);
+
+        if (modalStatusMsg) {
+          modalStatusMsg.textContent = "✅ Settings saved successfully!";
+          modalStatusMsg.style.color = "var(--status-green)";
+        }
+
+        setTimeout(() => {
+          closeModal();
+        }, 500);
+      });
     }
-
-    configBtn.addEventListener("click", openModal);
-    promptConfigBtn.addEventListener("click", openModal);
-    closeModalBtn.addEventListener("click", closeModal);
-    cancelConfigBtn.addEventListener("click", closeModal);
-
-    ownerApiKeyInput.addEventListener("input", () => {
-      if (modalStatusMsg) modalStatusMsg.textContent = "";
-    });
-
-    toggleKeyBtn.addEventListener("click", () => {
-      ownerApiKeyInput.type = ownerApiKeyInput.type === "password" ? "text" : "password";
-    });
-
-    saveConfigBtn.addEventListener("click", () => {
-      const key = ownerApiKeyInput.value.trim();
-      const opUrl = ownerOpUrlInput.value.trim() || "https://project.intermesh.net";
-      const bugUrl = ownerN8nBugLoggerUrlInput.value.trim() || QABUGRAISE_API;
-      const auditUrl = ownerN8nAuditTriggerUrlInput.value.trim() || AUDIT_TRIGGER_API;
-
-      if (!key) {
-        modalStatusMsg.textContent = "⚠️ Please enter your OpenProject API key.";
-        modalStatusMsg.style.color = "var(--status-red)";
-        return;
-      }
-
-      localStorage.setItem("im_qa_apikey", key);
-      localStorage.setItem("apiKey", key);
-      localStorage.setItem("apikey", key);
-      localStorage.setItem("im_qa_op_url", opUrl);
-      localStorage.setItem("im_qa_n8n_bug_url", bugUrl);
-      localStorage.setItem("im_qa_n8n_audit_url", auditUrl);
-
-      if (modalStatusMsg) {
-        modalStatusMsg.textContent = "✅ Credentials saved successfully!";
-        modalStatusMsg.style.color = "var(--status-green)";
-      }
-
-      apiPromptCard.classList.add("hidden");
-      setTimeout(() => {
-        closeModal();
-      }, 500);
-    });
   }
 
   function openModal() {
-    const key = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
-    ownerApiKeyInput.value = key;
-    ownerOpUrlInput.value = localStorage.getItem("im_qa_op_url") || "https://project.intermesh.net";
-    ownerN8nBugLoggerUrlInput.value = localStorage.getItem("im_qa_n8n_bug_url") || QABUGRAISE_API;
-    ownerN8nAuditTriggerUrlInput.value = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
+    if (ownerN8nAuditTriggerUrlInput) {
+      ownerN8nAuditTriggerUrlInput.value = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
+    }
     if (modalStatusMsg) modalStatusMsg.textContent = "";
-    configModal.classList.remove("hidden");
+    if (configModal) configModal.classList.remove("hidden");
   }
 
   function closeModal() {
-    configModal.classList.add("hidden");
+    if (configModal) configModal.classList.add("hidden");
   }
 
   function escapeHtml(str) {

@@ -63,16 +63,6 @@
   <!-- Main Workspace -->
   <main class="dashboard-container">
 
-    <!-- Config Warning Banner if API key not set -->
-    <div id="apiPromptCard" class="prompt-card hidden">
-      <div class="prompt-icon">🔑</div>
-      <div class="prompt-content">
-        <h3>Configure OpenProject API Key & n8n Webhook</h3>
-        <p>Set your API key to enable live bug reporting to OpenProject and webhook integration with n8n.</p>
-      </div>
-      <button class="prompt-btn" id="promptConfigBtn">Configure Key</button>
-    </div>
-
     <!-- Overview Metrics Cards -->
     <div class="metrics-grid">
       <div class="metric-card">
@@ -104,11 +94,11 @@
 
       <div class="metric-card">
         <div class="metric-header">
-          <span class="metric-title">Total Bugs Logged</span>
-          <span class="metric-icon bugs">🐛</span>
+          <span class="metric-title">Automated Shifts</span>
+          <span class="metric-icon total">⏱️</span>
         </div>
-        <div class="metric-value" id="statTotalBugs">0</div>
-        <div class="metric-subtitle">Logged via Extension & n8n Automation</div>
+        <div class="metric-value text-blue" id="statTotalShifts">4</div>
+        <div class="metric-subtitle">Morning, Afternoon, Evening & Night Shifts</div>
       </div>
     </div>
 
@@ -177,10 +167,6 @@
       <button class="tab-btn active" data-tab="tab-health">
         <span>🌐 Module Availability Monitor</span>
         <span class="tab-badge" id="healthTabBadge">12 Pages</span>
-      </button>
-      <button class="tab-btn" data-tab="tab-bugs">
-        <span>🐛 OpenProject Bug Feed</span>
-        <span class="tab-badge" id="bugsTabBadge">0 Tickets</span>
       </button>
       <button class="tab-btn" data-tab="tab-urls">
         <span>⚙️ Manage URLs & Modules</span>
@@ -268,58 +254,7 @@
       </div>
     </section>
 
-    <!-- TAB 2: BUGS LOG FEED -->
-    <section id="tab-bugs" class="tab-content">
-      <div class="table-section">
-        <div class="table-toolbar">
-          <div class="search-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="bugsSearchInput" placeholder="Search by bug title, QA reporter, ticket #...">
-          </div>
-
-          <div class="filters-group">
-            <select id="filterAuthor" class="filter-select">
-              <option value="ALL">All QA Reporters</option>
-            </select>
-            <select id="filterPriority" class="filter-select">
-              <option value="ALL">All Priorities</option>
-              <option value="High">High / Urgent</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Ticket #</th>
-                <th>Date &amp; Time</th>
-                <th>Reporter / System</th>
-                <th>Project / Module</th>
-                <th>Bug Summary</th>
-                <th>Type</th>
-                <th>Priority</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="ticketsTableBody">
-              <tr>
-                <td colspan="8" class="text-center">
-                  <div class="loading-spinner">Loading OpenProject bug reports...</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: MANAGE MODULE URLS -->
+    <!-- TAB 2: MANAGE MODULE URLS -->
     <section id="tab-urls" class="tab-content">
       <div class="config-card">
         <div class="config-card-header">
@@ -374,28 +309,10 @@
   <div id="configModal" class="modal-overlay hidden">
     <div class="modal-card">
       <div class="modal-header">
-        <h2>⚙️ QA System Credentials & Webhooks</h2>
+        <h2>⚙️ n8n Webhook Settings</h2>
         <button class="modal-close" id="closeModalBtn">✕</button>
       </div>
       <div class="modal-body">
-        <div class="form-group">
-          <label for="ownerApiKey">OpenProject API Key *</label>
-          <div class="input-row">
-            <input type="password" id="ownerApiKey" placeholder="Paste your API key here..." autocomplete="off">
-            <button class="toggle-btn" id="toggleKeyBtn" type="button">👁</button>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="ownerOpUrl">OpenProject Base URL</label>
-          <input type="text" id="ownerOpUrl" value="https://project.intermesh.net">
-        </div>
-
-        <div class="form-group">
-          <label for="ownerN8nBugLoggerUrl">n8n Bug Logger Webhook URL (qabugraise)</label>
-          <input type="text" id="ownerN8nBugLoggerUrl" value="https://imworkflow.intermesh.net/webhook/qabugraise">
-        </div>
-
         <div class="form-group">
           <label for="ownerN8nAuditTriggerUrl">n8n Manual Audit Webhook URL</label>
           <input type="text" id="ownerN8nAuditTriggerUrl" value="https://imworkflow.intermesh.net/webhook/trigger-indiamart-audit">

@@ -95,60 +95,7 @@
         80
       ],
       "id": "health-evaluator-node",
-      "name": "Evaluate Page Health & Build OpenProject Payload"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.isHealthy }}",
-              "value2": false
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        800,
-        80
-      ],
-      "id": "filter-failed-pages",
-      "name": "Is Page Down or Soft 404?"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://project.intermesh.net/api/v3/work_packages",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $json.authorization }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  \"subject\": $json.bugTitle,\n  \"description\": {\n    \"format\": \"markdown\",\n    \"raw\": $json.bugNotes\n  },\n  \"_links\": {\n    \"project\": {\n      \"href\": \"/api/v3/projects/\" + $json.project_id\n    },\n    \"type\": {\n      \"href\": \"/api/v3/types/7\"\n    },\n    \"priority\": {\n      \"href\": \"/api/v3/priorities/9\"\n    }\n  }\n}) }}",
-        "options": {
-          "neverError": true
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1040,
-        -40
-      ],
-      "id": "direct-openproject-create",
-      "name": "Create OpenProject Ticket Directly"
+      "name": "Evaluate Page Health"
     },
     {
       "parameters": {
@@ -173,15 +120,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        200
+        800,
+        80
       ],
       "id": "report-to-dashboard",
       "name": "Report Results to QA Dashboard"
     }
   ],
   "connections": {
-    "Hourly Schedule (After Office Hours)": {
+    "Time-Window Schedule Trigger (4-6AM, 1-3PM, 6-9PM, 11PM-12AM)": {
       "main": [
         [
           {
@@ -218,38 +165,15 @@
       "main": [
         [
           {
-            "node": "Evaluate Page Health & Build OpenProject Payload",
+            "node": "Evaluate Page Health",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Evaluate Page Health & Build OpenProject Payload": {
+    "Evaluate Page Health": {
       "main": [
-        [
-          {
-            "node": "Is Page Down or Soft 404?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Page Down or Soft 404?": {
-      "main": [
-        [
-          {
-            "node": "Create OpenProject Ticket Directly",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Report Results to QA Dashboard",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Report Results to QA Dashboard",
