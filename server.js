@@ -14,18 +14,41 @@ app.use(express.static(__dirname));
 // In-memory store for health check logs & reported issues
 const healthCheckLogs = [];
 
-// Helper to check page availability natively in Node.js (100% Free)
-function checkUrlNative(targetUrl) {
+// Helper to check page availability natively in Node.js (with HTTP redirect support)
+function checkUrlNative(targetUrl, redirectDepth = 0) {
   return new Promise((resolve) => {
+    if (redirectDepth > 5) {
+      return resolve({
+        statusCode: 310,
+        isHealthy: false,
+        isSoft404: false,
+        responseTimeMs: 0,
+        failureReason: 'Too Many HTTP Redirects (>5)'
+      });
+    }
+
     const startTime = Date.now();
     const client = targetUrl.startsWith('https') ? https : http;
 
     const req = client.get(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 QA-Monitor/1.0'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 QA-Monitor/1.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
       },
       timeout: 10000
     }, (res) => {
+      // Follow HTTP Redirects (301, 302, 303, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        let redirectUrl = res.headers.location;
+        if (redirectUrl.startsWith('/')) {
+          try {
+            const parsed = new URL(targetUrl);
+            redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
+          } catch (e) {}
+        }
+        return checkUrlNative(redirectUrl, redirectDepth + 1).then(resolve);
+      }
+
       let body = '';
       res.on('data', (chunk) => {
         body += chunk;
@@ -36,11 +59,13 @@ function checkUrlNative(targetUrl) {
         const statusCode = res.statusCode || 200;
         const lowerBody = body.toLowerCase();
         
-        const soft404Keywords = ['page not found', 'product not found', 'item unavailable', '404 not found', 'server error', 'something went wrong'];
+        const soft404Keywords = ['page not found', 'product not found', 'item unavailable', '404 not found', 'server error', 'something went wrong', 'under maintenance'];
         let isSoft404 = false;
+        let detectedKw = '';
         for (let kw of soft404Keywords) {
           if (lowerBody.includes(kw)) {
             isSoft404 = true;
+            detectedKw = kw;
             break;
           }
         }
@@ -51,7 +76,7 @@ function checkUrlNative(targetUrl) {
           isHealthy,
           isSoft404,
           responseTimeMs: elapsed,
-          failureReason: !isHealthy ? (statusCode !== 200 ? `HTTP ${statusCode}` : (isSoft404 ? 'Soft 404 text detected in HTML' : 'Empty Response')) : ''
+          failureReason: !isHealthy ? (statusCode !== 200 ? `HTTP ${statusCode}` : (isSoft404 ? `Soft 404: Detected "${detectedKw}"` : 'Empty Response')) : ''
         });
       });
     });
@@ -139,7 +164,7 @@ app.get('/api/schedule-summary', (req, res) => {
   res.json({ success: true, summary, currentTime: now.toLocaleTimeString() });
 });
 
-// Direct Local Audit Endpoint (100% Free & Independent of n8n)
+// Direct Local Audit Endpoint (100% Free & Independent of n8n, Fast Parallel Execution)
 app.post('/api/run-local-audit', async (req, res) => {
   const { urls } = req.body;
   if (!urls || !Array.isArray(urls)) {
@@ -147,9 +172,8 @@ app.post('/api/run-local-audit', async (req, res) => {
   }
 
   const timeWindow = getTimeWindowTag();
-  const results = [];
 
-  for (let item of urls) {
+  const results = await Promise.all(urls.map(async (item) => {
     const health = await checkUrlNative(item.url);
     const itemResult = {
       ...item,
@@ -157,9 +181,7 @@ app.post('/api/run-local-audit', async (req, res) => {
       timeWindow,
       lastChecked: new Date().toLocaleTimeString()
     };
-    results.push(itemResult);
 
-    // Push into server log history as well
     healthCheckLogs.unshift({
       module_name: item.name,
       category: item.category,
@@ -172,7 +194,9 @@ app.post('/api/run-local-audit', async (req, res) => {
       timeWindow,
       receivedAt: new Date().toISOString()
     });
-  }
+
+    return itemResult;
+  }));
 
   if (healthCheckLogs.length > 300) healthCheckLogs.splice(300);
 
