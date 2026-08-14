@@ -642,52 +642,54 @@
       });
     }
 
-    bugsSearchInput.addEventListener("input", renderBugsTable);
-    if (filterPriority) filterPriority.addEventListener("change", renderBugsTable);
+    if (runAuditBtn) runAuditBtn.addEventListener("click", handleAuditToggle);
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", () => {
+        fetchScheduleSummary();
+        renderModulesTable();
+        renderUrlConfigList();
+        updateMetrics();
+      });
+    }
 
-    runAuditBtn.addEventListener("click", handleAuditToggle);
-    refreshBtn.addEventListener("click", () => {
-      fetchScheduleSummary();
-      renderModulesTable();
-      renderBugsTable();
-    });
+    if (addUrlForm) {
+      addUrlForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("newModuleName").value.trim();
+        const category = document.getElementById("newCategory").value;
+        const url = document.getElementById("newUrl").value.trim();
+        const qaOwner = document.getElementById("newQaOwner").value.trim();
 
-    addUrlForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("newModuleName").value.trim();
-      const category = document.getElementById("newCategory").value;
-      const url = document.getElementById("newUrl").value.trim();
-      const qaOwner = document.getElementById("newQaOwner").value.trim();
+        const newMod = {
+          id: "mod-" + Date.now(),
+          name,
+          category,
+          pageType: name,
+          url,
+          qaOwner,
+          projectId: "1",
+          projectName: category.includes("PDP") ? "product detail page" : (category.includes("Export") ? "Verified Exporter Programme" : (category.includes("Hindi") ? "Indic IM" : "DIR")),
+          statusCode: 200,
+          isHealthy: true,
+          isSoft404: false,
+          failureReason: "",
+          responseTimeMs: 150,
+          lastChecked: "Just now"
+        };
 
-      const newMod = {
-        id: "mod-" + Date.now(),
-        name,
-        category,
-        pageType: name,
-        url,
-        qaOwner,
-        projectId: "1",
-        projectName: category.includes("PDP") ? "product detail page" : (category.includes("Export") ? "Verified Exporter Programme" : (category.includes("Hindi") ? "Indic IM" : "DIR")),
-        statusCode: 200,
-        isHealthy: true,
-        isSoft404: false,
-        failureReason: "",
-        responseTimeMs: 150,
-        lastChecked: "Just now"
-      };
-
-      modulesList.push(newMod);
-      saveModulesList();
-      addUrlForm.reset();
-      renderModulesTable();
-      renderUrlConfigList();
-      updateMetrics();
-      alert("✅ Module URL added to monitoring list!");
-    });
+        modulesList.push(newMod);
+        saveModulesList();
+        addUrlForm.reset();
+        renderModulesTable();
+        renderUrlConfigList();
+        updateMetrics();
+        alert("✅ Module URL added to monitoring list!");
+      });
+    }
   }
 
   // =====================================================
-  // BATCH HEALTH CHECK & AUTOMATIC BUG LOGGER WITH STOP TOGGLE
+  // BATCH HEALTH CHECK WITH STOP TOGGLE & RESILIENT AUDIT
   // =====================================================
 
   let isAuditing = false;
@@ -704,14 +706,16 @@
   function resetAuditButton() {
     isAuditing = false;
     auditAbortController = null;
-    runAuditBtn.disabled = false;
-    runAuditBtn.classList.remove("btn-stop");
-    runAuditBtn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-      </svg>
-      Run Audit Now
-    `;
+    if (runAuditBtn) {
+      runAuditBtn.disabled = false;
+      runAuditBtn.classList.remove("btn-stop");
+      runAuditBtn.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        Run Audit Now
+      `;
+    }
   }
 
   function stopBatchHealthCheck() {
@@ -723,19 +727,20 @@
   }
 
   async function runBatchHealthCheck() {
-    const apiKey = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
     isAuditing = true;
     auditAbortController = new AbortController();
 
-    runAuditBtn.disabled = false;
-    runAuditBtn.classList.add("btn-stop");
-    runAuditBtn.innerHTML = `⏹️ STOP Audit (${modulesList.length} URLs)`;
+    if (runAuditBtn) {
+      runAuditBtn.disabled = false;
+      runAuditBtn.classList.add("btn-stop");
+      runAuditBtn.innerHTML = `⏹️ STOP Audit (${modulesList.length} URLs)`;
+    }
 
     let checkedCount = 0;
     let failedModules = [];
     let wasAborted = false;
 
-    // Direct local server audit request with abort signal
+    // Direct server/API audit request with abort signal
     try {
       const resp = await fetch('/api/run-local-audit', {
         method: 'POST',
@@ -769,96 +774,23 @@
 
     if (wasAborted) return;
 
-    // Trigger n8n webhook with abort signal support
+    // Optional trigger n8n audit webhook if configured
     const n8nAuditUrl = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
     fetch(n8nAuditUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apikey: apiKey }),
+      body: JSON.stringify({ manualTrigger: true, timestamp: new Date().toISOString() }),
       signal: auditAbortController.signal
     }).catch(() => {});
 
-    // Automatically trigger bug tickets for failed modules
-    if (failedModules.length > 0) {
-      for (let fMod of failedModules) {
-        triggerAutoBugForModule(fMod.id, true);
-      }
-    }
-
     saveModulesList();
     renderModulesTable();
+    renderUrlConfigList();
     updateMetrics();
-    renderBugsTable();
     fetchScheduleSummary();
 
     resetAuditButton();
-    alert(`✅ Audit Complete across ${checkedCount || modulesList.length} IndiaMART URLs! ${failedModules.length > 0 ? `🚨 ${failedModules.length} page outages detected and auto-logged!` : '🟢 All pages Healthy.'}`);
-  }
-
-  // =====================================================
-  // AUTO BUG LOGGER TRIGGER (qabugraise Integration)
-  // =====================================================
-
-  async function triggerAutoBugForModule(modId, silent = false) {
-    const mod = modulesList.find(m => m.id === modId);
-    if (!mod) return;
-
-    const apiKey = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
-    if (!apiKey) {
-      if (!silent) {
-        alert("⚠️ OpenProject API key missing! Please configure your API key in Settings (⚙️) to enable live bug reporting to OpenProject.");
-        openModal();
-      }
-      return;
-    }
-
-    const n8nWebhook = localStorage.getItem("im_qa_n8n_bug_url") || QABUGRAISE_API;
-    const bugTitle = `[AUTOMATED OUTAGE] ${mod.name} - ${mod.failureReason || '404 / 5xx Page Not Found'}`;
-    const bugNotes = `AUTOMATED QA ALERT: IndiaMART Page Availability Monitor detected page outage.\nModule: ${mod.name}\nPage Type: ${mod.pageType}\nCategory: ${mod.category}\nURL: ${mod.url}\nStatus Code: ${mod.statusCode}\nFailure Diagnostic: ${mod.failureReason || '404 Not Found / Soft 404'}\nOpenProject Bucket: ${mod.projectName || 'FCP/MDC'}\nAssigned QA: ${mod.qaOwner}`;
-
-    const payload = {
-      notes: bugNotes,
-      project_id: mod.projectId || "1",
-      project_name: mod.projectName || "FCP/MDC",
-      bug_type: "Product Bug",
-      priority_id: 9,
-      priority_name: "High",
-      title: bugTitle,
-      tab_url: mod.url,
-      apikey: apiKey,
-      op_url: "https://project.intermesh.net"
-    };
-
-    const newBugEntry = {
-      id: Date.now().toString().slice(-5),
-      title: bugTitle,
-      qaName: "n8n Outage Monitor 🤖",
-      projectName: mod.projectName || "FCP/MDC",
-      bugType: "Product Bug",
-      priority: "High",
-      createdAt: new Date().toISOString(),
-      url: mod.url,
-      reason: mod.failureReason || "404 Page Not Found",
-      ticketUrl: "https://project.intermesh.net/work_packages"
-    };
-
-    outageBugsLogs.unshift(newBugEntry);
-    localStorage.setItem("indiamart_outage_bugs", JSON.stringify(outageBugsLogs));
-
-    try {
-      await fetch(n8nWebhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).catch(() => null);
-
-      if (!silent) {
-        alert(`🐛 Outage Bug Ticket logged automatically into bucket '${mod.projectName}' via n8n qabugraise!`);
-      }
-      renderBugsTable();
-    } catch (e) {
-      if (!silent) alert(`❌ Failed to reach n8n webhook: ${e.message}`);
-    }
+    alert(`✅ Audit Complete across ${checkedCount || modulesList.length} IndiaMART URLs! ${failedModules.length > 0 ? `🚨 ${failedModules.length} page outages detected!` : '🟢 All pages Healthy.'}`);
   }
 
   window.simulateIssue = function (modId, issueType) {
@@ -982,7 +914,7 @@
     if (filtered.length === 0) {
       healthTableBody.innerHTML = `
         <tr>
-          <td colspan="9" class="text-center" style="padding: 2.5rem; color: var(--text-secondary);">
+          <td colspan="10" class="text-center" style="padding: 2.5rem; color: var(--text-secondary);">
             🔍 No IndiaMART modules match the selected filter.
           </td>
         </tr>
@@ -1163,6 +1095,18 @@
     localStorage.setItem("indiamart_qa_modules_v3", JSON.stringify(modulesList));
   }
 
+  function openModal() {
+    if (ownerN8nAuditTriggerUrlInput) {
+      ownerN8nAuditTriggerUrlInput.value = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
+    }
+    if (modalStatusMsg) modalStatusMsg.textContent = "";
+    if (configModal) configModal.classList.remove("hidden");
+  }
+
+  function closeModal() {
+    if (configModal) configModal.classList.add("hidden");
+  }
+
   function setupConfigModal() {
     if (configBtn) configBtn.addEventListener("click", openModal);
     if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
@@ -1197,14 +1141,11 @@
     }
   };
 
-  window.openConfigModal = function () {
-    if (ownerN8nAuditTriggerUrlInput) {
-      ownerN8nAuditTriggerUrlInput.value = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
-    }
-    if (modalStatusMsg) modalStatusMsg.textContent = "";
-    if (configModal) configModal.classList.remove("hidden");
-  };
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
+  window.openConfigModal = openModal;
   window.closeConfigModal = closeModal;
 
   document.addEventListener("DOMContentLoaded", init);
