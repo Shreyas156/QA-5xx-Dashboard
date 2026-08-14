@@ -468,7 +468,13 @@
   ];
 
   // State Variables
-  let modulesList = JSON.parse(localStorage.getItem("indiamart_qa_modules_v3")) || DEFAULT_MODULES;
+  let savedModules = null;
+  try {
+    const raw = localStorage.getItem("indiamart_qa_modules_v3") || localStorage.getItem("indiamart_qa_modules_v2");
+    if (raw) savedModules = JSON.parse(raw);
+  } catch (e) {}
+
+  let modulesList = (savedModules && Array.isArray(savedModules) && savedModules.length > 0) ? savedModules : [...DEFAULT_MODULES];
   let currentCategory = "ALL";
 
   // DOM Elements
@@ -1180,21 +1186,26 @@
     }
   }
 
-  function openModal() {
+  window.resetDefaultUrls = function () {
+    if (confirm("Reset URL list back to default 27 IndiaMART modules?")) {
+      modulesList = [...DEFAULT_MODULES];
+      saveModulesList();
+      renderModulesTable();
+      renderUrlConfigList();
+      updateMetrics();
+      alert("✅ Restored default 27 IndiaMART URLs!");
+    }
+  };
+
+  window.openConfigModal = function () {
     if (ownerN8nAuditTriggerUrlInput) {
       ownerN8nAuditTriggerUrlInput.value = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
     }
     if (modalStatusMsg) modalStatusMsg.textContent = "";
     if (configModal) configModal.classList.remove("hidden");
-  }
+  };
 
-  function closeModal() {
-    if (configModal) configModal.classList.add("hidden");
-  }
-
-  function escapeHtml(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  window.closeConfigModal = closeModal;
 
   document.addEventListener("DOMContentLoaded", init);
 })();

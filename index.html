@@ -55,7 +55,7 @@
         Refresh
       </button>
 
-      <button class="nav-btn" id="configBtn" title="Configure OpenProject & n8n settings">⚙️ Settings</button>
+      <button class="nav-btn" id="configBtn" onclick="openConfigModal()" title="Configure n8n settings">⚙️ Settings</button>
       <button class="nav-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">🌙</button>
     </div>
   </header>
@@ -297,7 +297,10 @@
         </form>
 
         <div class="configured-urls-list">
-          <h4>Current Monitored URLs List</h4>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+            <h4 style="margin:0;">Current Monitored URLs List</h4>
+            <button type="button" class="btn btn-secondary" onclick="resetDefaultUrls()" style="padding:0.35rem 0.75rem; font-size:0.8rem;">🔄 Restore Default 27 URLs</button>
+          </div>
           <div id="urlListContainer" class="url-cards-grid"></div>
         </div>
       </div>
