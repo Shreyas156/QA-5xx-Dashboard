@@ -1,0 +1,263 @@
+{
+  "name": "IndiaMART Production Website Health Monitor (Direct OpenProject Integration)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "mode": "custom",
+          "cronExpression": "0 4,5,6,13,14,15,18,19,20,21,23,0 * * *"
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "schedule-trigger-1",
+      "name": "Time-Window Schedule Trigger (4-6AM, 1-3PM, 6-9PM, 11PM-12AM)"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trigger-indiamart-audit",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        200
+      ],
+      "id": "manual-audit-webhook",
+      "name": "Manual Audit Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const startTime = Date.now();\n\n// Define Exact IndiaMART QA Module URLs & OpenProject Bucket Names\nconst modules = [\n  // FCP Rank A (Bucket: FCP/MDC)\n  {\n    module_name: \"Company Page - FCP (Rank A)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank A\",\n    url: \"https://www.indiamart.com/sushant-thread-mill/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  {\n    module_name: \"Company Page - FCP (Rank A)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank A\",\n    url: \"https://www.indiamart.com/s-a-manickamudaliar-sons/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  // FCP Rank B (Bucket: FCP/MDC)\n  {\n    module_name: \"Company Page - FCP (Rank B)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank B\",\n    url: \"https://www.indiamart.com/redstoneproperties/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  {\n    module_name: \"Company Page - FCP (Rank B)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank B\",\n    url: \"https://www.indiamart.com/kogtas-ganesham/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  // FCP Rank D (Bucket: FCP/MDC)\n  {\n    module_name: \"Company Page - FCP (Rank D)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank D\",\n    url: \"https://www.indiamart.com/sab-infra-projects/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  {\n    module_name: \"Company Page - FCP (Rank D)\",\n    category: \"Company Pages\",\n    page_type: \"FCP Rank D\",\n    url: \"https://www.indiamart.com/pragati-industrial-estate/\",\n    assigned_qa: \"FCP QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  // MDC Company Pages (Bucket: FCP/MDC)\n  {\n    module_name: \"Company Page - MDC (Romofy Agro)\",\n    category: \"Company Pages\",\n    page_type: \"Paid Seller (MDC)\",\n    url: \"https://www.indiamart.com/romofyagro/\",\n    assigned_qa: \"MDC QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  {\n    module_name: \"Company Page - MDC (Awani Trends)\",\n    category: \"Company Pages\",\n    page_type: \"Paid Seller (MDC)\",\n    url: \"https://www.indiamart.com/awani-trends/\",\n    assigned_qa: \"MDC QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  {\n    module_name: \"Company Page - MDC (Partech Group)\",\n    category: \"Company Pages\",\n    page_type: \"Paid Seller (MDC)\",\n    url: \"https://www.indiamart.com/partechgroup/\",\n    assigned_qa: \"MDC QA Team\",\n    project_id: \"1\",\n    project_name: \"FCP/MDC\"\n  },\n  // TDW Client Template (Bucket: Clients Templates)\n  {\n    module_name: \"Company Page - TDW (Satya Packaging)\",\n    category: \"Company Pages\",\n    page_type: \"Client Template (TDW)\",\n    url: \"https://www.satyapackaging.org/\",\n    assigned_qa: \"TDW QA Team\",\n    project_id: \"1\",\n    project_name: \"Clients Templates\"\n  },\n  // Main Portals & Directory (Bucket: DIR)\n  {\n    module_name: \"IndiaMART Homepage\",\n    category: \"Core Portal\",\n    page_type: \"Main Portal\",\n    url: \"https://www.indiamart.com/\",\n    assigned_qa: \"Core QA Team\",\n    project_id: \"2\",\n    project_name: \"DIR\"\n  },\n  {\n    module_name: \"Directory Homepage\",\n    category: \"Directory\",\n    page_type: \"Category Directory\",\n    url: \"https://dir.indiamart.com/\",\n    assigned_qa: \"Dir QA Team\",\n    project_id: \"3\",\n    project_name: \"DIR\"\n  },\n  {\n    module_name: \"Directory Impcat Page\",\n    category: \"Directory\",\n    page_type: \"Pharma Category Impcat\",\n    url: \"https://dir.indiamart.com/impcat/pharmaceutical-tablets.html\",\n    assigned_qa: \"Dir QA Team\",\n    project_id: \"3\",\n    project_name: \"DIR\"\n  },\n  {\n    module_name: \"Search Page (Rice)\",\n    category: \"Search & Discovery\",\n    page_type: \"Search Engine\",\n    url: \"https://dir.indiamart.com/search.mp?ss=rice\",\n    assigned_qa: \"Search QA Team\",\n    project_id: \"7\",\n    project_name: \"DIR\"\n  },\n  {\n    module_name: \"Lens IndiaMART\",\n    category: \"Search & Discovery\",\n    page_type: \"Visual Search Portal\",\n    url: \"https://lens.indiamart.com/home\",\n    assigned_qa: \"Lens QA Team\",\n    project_id: \"6\",\n    project_name: \"DIR\"\n  },\n  // Buyer My Page (Bucket: buyer MY.IM)\n  {\n    module_name: \"Buyer My Page\",\n    category: \"Buyer Services\",\n    page_type: \"Buyer Profile\",\n    url: \"https://buyer.indiamart.com/\",\n    assigned_qa: \"Buyer QA Team\",\n    project_id: \"4\",\n    project_name: \"buyer MY.IM\"\n  },\n  // BMC Page (Bucket: Buyer-My-Messages)\n  {\n    module_name: \"BMC Page\",\n    category: \"Seller Services\",\n    page_type: \"Seller Messages Portal\",\n    url: \"https://seller.indiamart.com/\",\n    assigned_qa: \"Seller QA Team\",\n    project_id: \"5\",\n    project_name: \"Buyer-My-Messages\"\n  },\n  // Product Detail Page (Bucket: product detail page)\n  {\n    module_name: \"Product Detail Page (PDP)\",\n    category: \"PDP\",\n    page_type: \"Product Detail Page\",\n    url: \"https://www.indiamart.com/proddetail/pongal-rice-btc-2857671872188.html?\",\n    assigned_qa: \"PDP QA Team\",\n    project_id: \"8\",\n    project_name: \"product detail page\"\n  },\n  // Hindi IndiaMART (Bucket: Indic IM)\n  {\n    module_name: \"Hindi Homepage\",\n    category: \"Vernacular\",\n    page_type: \"Hindi Portal\",\n    url: \"https://hindi.indiamart.com/\",\n    assigned_qa: \"Regional QA Team\",\n    project_id: \"9\",\n    project_name: \"Indic IM\"\n  },\n  {\n    module_name: \"Hindi Impcat Page\",\n    category: \"Vernacular\",\n    page_type: \"Hindi Rubber Mats Category\",\n    url: \"https://hindi.indiamart.com/impcat/rubber-floor-mats/\",\n    assigned_qa: \"Regional QA Team\",\n    project_id: \"9\",\n    project_name: \"Indic IM\"\n  },\n  {\n    module_name: \"Hindi PDP Page (404 Sample Page)\",\n    category: \"Vernacular\",\n    page_type: \"Hindi Product Detail\",\n    url: \"https://hindi.indiamart.com/proddetail/-%E0%A4%B9%E0%A5%8B%E0%A4%B2%E0%A4%95%E0%A5%89%E0%A4%AE%E0%A5%8D%E0%A4%B2-%E0%A4%94%E0%A4%B0-%E0%A4%8F%E0%A4%B6%E0%A4%95%E0%A5%8D%E0%A4%B0%E0%A4%AE%E0%A4%AB%E0%A5%8D%E0%A4%9F-%E0%A4%95%E0%A5%80-%E0%A4%AA%E0%A5%80%E0%A4%A1%E0%A4%BF%E0%A4%AF%E0%A4%AE%E0%A5%8D%E0%A4%9F%E0%A4%B0%E0%A4%BF%E0%A4%95-%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%9C%E0%A4%B0%E0%A5%80-8%E0%A4%B5%E0%A4%BE%E0%A4%82-%E0%A4%B8%E0%A4%82%E0%A4%B8%E0%A5%8D%E0%A4%95%E0%A4%B0%E0%A4%A3-2859648906330.html\",\n    assigned_qa: \"Regional QA Team\",\n    project_id: \"9\",\n    project_name: \"Indic IM\"\n  },\n  // Export Pages (Bucket: Verified Exporter Programme)\n  {\n    module_name: \"Export Homepage\",\n    category: \"Global Trade\",\n    page_type: \"Export Portal\",\n    url: \"https://export.indiamart.com/\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  {\n    module_name: \"Export Search Page\",\n    category: \"Global Trade\",\n    page_type: \"Export Search\",\n    url: \"https://export.indiamart.com/search.php?ss=Solenoid+Valves\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  {\n    module_name: \"Export PDP Page\",\n    category: \"Global Trade\",\n    page_type: \"Export Product Detail\",\n    url: \"https://export.indiamart.com/products/?id=2852261329312\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  {\n    module_name: \"Export Company Page\",\n    category: \"Global Trade\",\n    page_type: \"Export Seller Profile\",\n    url: \"https://export.indiamart.com/company/rajbiosis/\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  {\n    module_name: \"Export Trust Page\",\n    category: \"Global Trade\",\n    page_type: \"Export Trustworthiness\",\n    url: \"https://export.indiamart.com/trustworthiness/\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  {\n    module_name: \"Export Country Page\",\n    category: \"Global Trade\",\n    page_type: \"Export Directory by Country\",\n    url: \"https://export.indiamart.com/country/\",\n    assigned_qa: \"Export QA Team\",\n    project_id: \"10\",\n    project_name: \"Verified Exporter Programme\"\n  },\n  // Ship With IM (Bucket: shop.im)\n  {\n    module_name: \"Ship With IM Page\",\n    category: \"Logistics\",\n    page_type: \"Shipping Full Load Booking\",\n    url: \"https://shipwith.indiamart.com/book/full-load\",\n    assigned_qa: \"Logistics QA Team\",\n    project_id: \"11\",\n    project_name: \"shop.im\"\n  }\n];\n\nconst userApiKey = $json?.body?.apikey || $json?.apikey || \"\";\n\nreturn modules.map(mod => ({\n  json: {\n    ...mod,\n    startTime: startTime,\n    apikey: userApiKey,\n    op_url: \"https://project.intermesh.net\"\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        80
+      ],
+      "id": "config-urls-node",
+      "name": "Load IndiaMART Module URLs"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.9"
+            }
+          ]
+        },
+        "options": {
+          "neverError": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        80
+      ],
+      "id": "http-fetch-node",
+      "name": "Check Page Availability"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $node[\"Load IndiaMART Module URLs\"].json;\nconst response = $json;\n\nconst statusCode = response.statusCode || response.status || (response.error ? 500 : 200);\nconst bodyText = typeof response.body === 'string' ? response.body : JSON.stringify(response.body || '');\n\n// Calculate real response time latency\nconst responseTimeMs = prevData.startTime ? (Date.now() - prevData.startTime) : 150;\n\n// Determine Operational Time Window Tag\nconst hour = new Date().getHours();\nlet timeWindow = \"Manual / Custom Run\";\nif (hour >= 4 && hour <= 6) {\n  timeWindow = \"Morning Shift (4 AM - 6 AM)\";\n} else if (hour >= 13 && hour <= 15) {\n  timeWindow = \"Afternoon Shift (1 PM - 3 PM)\";\n} else if (hour >= 18 && hour <= 21) {\n  timeWindow = \"Evening Shift (6 PM - 9 PM)\";\n} else if (hour === 23 || hour === 0) {\n  timeWindow = \"Night Shift (11 PM - 12 AM)\";\n}\n\nconst soft404Keywords = [\n  \"page not found\",\n  \"product not found\",\n  \"item unavailable\",\n  \"404 not found\",\n  \"something went wrong\",\n  \"server error\",\n  \"500 internal server error\",\n  \"page missing\",\n  \"no longer available\",\n  \"under maintenance\",\n  \"window.is404 = true\",\n  \"pdp404: true\"\n];\n\nconst lowerBody = bodyText.toLowerCase();\nlet isSoft404 = false;\nlet detectedKeyword = \"\";\n\nfor (const kw of soft404Keywords) {\n  if (lowerBody.includes(kw)) {\n    isSoft404 = true;\n    detectedKeyword = kw;\n    break;\n  }\n}\n\nlet isHealthy = true;\nlet failureReason = \"\";\n\nif (statusCode !== 200) {\n  isHealthy = false;\n  failureReason = `HTTP ${statusCode} Status Code`;\n} else if (isSoft404) {\n  isHealthy = false;\n  failureReason = `Soft 404 Error: Detected phrase \"${detectedKeyword}\" in HTML content`;\n} else if (bodyText.trim().length < 100) {\n  isHealthy = false;\n  failureReason = \"Empty / Blank HTML Response Body\";\n}\n\nconst timestamp = new Date().toISOString();\nconst bugTitle = `[AUTOMATED ${isSoft404 ? 'SOFT 404' : 'PAGE DOWN'}] ${prevData.module_name} failing: ${failureReason}`;\nconst bugNotes = `AUTOMATED QA ALERT: ${prevData.module_name} (${prevData.page_type}) page health audit failed during ${timeWindow}.\\n\\nURL: ${prevData.url}\\nStatus Code: ${statusCode}\\nFailure Diagnostic: ${failureReason}\\nOpenProject Bucket: ${prevData.project_name}\\nAssigned QA: ${prevData.assigned_qa}\\nReal Response Time: ${responseTimeMs}ms\\nTime Window: ${timeWindow}\\nTimestamp: ${timestamp}`;\n\nconst auth = prevData.apikey ? Buffer.from(`apikey:${prevData.apikey}`).toString(\"base64\") : \"\";\n\nreturn [{\n  json: {\n    ...prevData,\n    statusCode: statusCode,\n    isHealthy: isHealthy,\n    isSoft404: isSoft404,\n    failureReason: failureReason,\n    responseTimeMs: responseTimeMs,\n    timeWindow: timeWindow,\n    timestamp: timestamp,\n    bugTitle: bugTitle,\n    bugNotes: bugNotes,\n    authorization: auth ? `Basic ${auth}` : \"\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        80
+      ],
+      "id": "health-evaluator-node",
+      "name": "Evaluate Page Health & Build OpenProject Payload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isHealthy }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        800,
+        80
+      ],
+      "id": "filter-failed-pages",
+      "name": "Is Page Down or Soft 404?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://project.intermesh.net/api/v3/work_packages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"subject\": $json.bugTitle,\n  \"description\": {\n    \"format\": \"markdown\",\n    \"raw\": $json.bugNotes\n  },\n  \"_links\": {\n    \"project\": {\n      \"href\": \"/api/v3/projects/\" + $json.project_id\n    },\n    \"type\": {\n      \"href\": \"/api/v3/types/7\"\n    },\n    \"priority\": {\n      \"href\": \"/api/v3/priorities/9\"\n    }\n  }\n}) }}",
+        "options": {
+          "neverError": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        -40
+      ],
+      "id": "direct-openproject-create",
+      "name": "Create OpenProject Ticket Directly"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/webhook/health-results",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"module_name\": $json.module_name,\n  \"category\": $json.category,\n  \"url\": $json.url,\n  \"statusCode\": $json.statusCode,\n  \"isHealthy\": $json.isHealthy,\n  \"isSoft404\": $json.isSoft404,\n  \"failureReason\": $json.failureReason,\n  \"responseTimeMs\": $json.responseTimeMs,\n  \"timeWindow\": $json.timeWindow,\n  \"timestamp\": $json.timestamp\n}) }}",
+        "options": {
+          "neverError": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        200
+      ],
+      "id": "report-to-dashboard",
+      "name": "Report Results to QA Dashboard"
+    }
+  ],
+  "connections": {
+    "Hourly Schedule (After Office Hours)": {
+      "main": [
+        [
+          {
+            "node": "Load IndiaMART Module URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Audit Webhook": {
+      "main": [
+        [
+          {
+            "node": "Load IndiaMART Module URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load IndiaMART Module URLs": {
+      "main": [
+        [
+          {
+            "node": "Check Page Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Page Availability": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Page Health & Build OpenProject Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Page Health & Build OpenProject Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Page Down or Soft 404?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Page Down or Soft 404?": {
+      "main": [
+        [
+          {
+            "node": "Create OpenProject Ticket Directly",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report Results to QA Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report Results to QA Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

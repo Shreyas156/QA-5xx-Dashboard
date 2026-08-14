@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IndiaMART QA — Module Health & Bug Logger Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <path d="m9 12 2 2 4-4"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title-row">
+          <h1>IndiaMART QA Center</h1>
+          <span class="badge badge-im">Intermesh QA</span>
+        </div>
+        <div class="subtitle">Module Availability & Automated Bug Logger</div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="monitor-status" id="monitorStatusBadge">
+        <span class="status-dot green"></span>
+        <span class="status-text">n8n Hourly Monitor Active</span>
+      </div>
+
+      <button class="btn btn-trigger" id="runAuditBtn" title="Run instant health check across all modules">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        Run Audit Now
+      </button>
+
+      <button class="nav-btn" id="refreshBtn" title="Refresh Dashboard Data">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+          <path d="M16 16h5v5"></path>
+        </svg>
+        Refresh
+      </button>
+
+      <button class="nav-btn" id="configBtn" title="Configure OpenProject & n8n settings">⚙️ Settings</button>
+      <button class="nav-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="dashboard-container">
+
+    <!-- Config Warning Banner if API key not set -->
+    <div id="apiPromptCard" class="prompt-card hidden">
+      <div class="prompt-icon">🔑</div>
+      <div class="prompt-content">
+        <h3>Configure OpenProject API Key & n8n Webhook</h3>
+        <p>Set your API key to enable live bug reporting to OpenProject and webhook integration with n8n.</p>
+      </div>
+      <button class="prompt-btn" id="promptConfigBtn">Configure Key</button>
+    </div>
+
+    <!-- Overview Metrics Cards -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Monitored QA Modules</span>
+          <span class="metric-icon total">🌐</span>
+        </div>
+        <div class="metric-value" id="statMonitoredPages">12</div>
+        <div class="metric-subtitle">Company Pages, PDP, Dir, Buyer, Lens, etc.</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Module Uptime Rate</span>
+          <span class="metric-icon uptime">📈</span>
+        </div>
+        <div class="metric-value text-green" id="statUptimeRate">100%</div>
+        <div class="metric-subtitle">200 OK Status vs 404/5xx/Soft-404</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Active Outages & Soft 404s</span>
+          <span class="metric-icon outages">🚨</span>
+        </div>
+        <div class="metric-value text-red" id="statActiveOutages">0</div>
+        <div class="metric-subtitle" id="statOutageSub">All pages operating normally</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Total Bugs Logged</span>
+          <span class="metric-icon bugs">🐛</span>
+        </div>
+        <div class="metric-value" id="statTotalBugs">0</div>
+        <div class="metric-subtitle">Logged via Extension & n8n Automation</div>
+      </div>
+    </div>
+
+    <!-- Scheduled Time Window Execution Tracker -->
+    <section class="schedule-section">
+      <div class="schedule-header">
+        <div class="schedule-title-group">
+          <h3>⏱️ n8n Scheduled Time Window Tracker</h3>
+          <span class="schedule-subtitle">Automated Execution Windows (4-6 AM | 1-3 PM | 6-9 PM | 11 PM-12 AM)</span>
+        </div>
+        <div class="schedule-live-badge" id="scheduleLiveBadge">
+          <span class="pulse-dot green"></span>
+          <span id="currentShiftText">Current Shift: Checking...</span>
+        </div>
+      </div>
+
+      <div class="schedule-grid" id="scheduleCardsGrid">
+        <!-- Morning Shift Card -->
+        <div class="schedule-card" id="card-morning">
+          <div class="shift-icon">🌅</div>
+          <div class="shift-info">
+            <div class="shift-title">Morning Shift</div>
+            <div class="shift-time">4:00 AM – 6:00 AM</div>
+            <div class="shift-meta" id="meta-morning">0 runs executed</div>
+          </div>
+          <div class="shift-status-badge upcoming" id="badge-morning">Upcoming</div>
+        </div>
+
+        <!-- Afternoon Shift Card -->
+        <div class="schedule-card" id="card-afternoon">
+          <div class="shift-icon">☀️</div>
+          <div class="shift-info">
+            <div class="shift-title">Afternoon Shift</div>
+            <div class="shift-time">1:00 PM – 3:00 PM</div>
+            <div class="shift-meta" id="meta-afternoon">0 runs executed</div>
+          </div>
+          <div class="shift-status-badge upcoming" id="badge-afternoon">Upcoming</div>
+        </div>
+
+        <!-- Evening Shift Card -->
+        <div class="schedule-card" id="card-evening">
+          <div class="shift-icon">🌆</div>
+          <div class="shift-info">
+            <div class="shift-title">Evening Shift</div>
+            <div class="shift-time">6:00 PM – 9:00 PM</div>
+            <div class="shift-meta" id="meta-evening">0 runs executed</div>
+          </div>
+          <div class="shift-status-badge upcoming" id="badge-evening">Upcoming</div>
+        </div>
+
+        <!-- Night Shift Card -->
+        <div class="schedule-card" id="card-night">
+          <div class="shift-icon">🌙</div>
+          <div class="shift-info">
+            <div class="shift-title">Night Shift</div>
+            <div class="shift-time">11:00 PM – 12:00 AM</div>
+            <div class="shift-meta" id="meta-night">0 runs executed</div>
+          </div>
+          <div class="shift-status-badge upcoming" id="badge-night">Upcoming</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-tab="tab-health">
+        <span>🌐 Module Availability Monitor</span>
+        <span class="tab-badge" id="healthTabBadge">12 Pages</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-bugs">
+        <span>🐛 OpenProject Bug Feed</span>
+        <span class="tab-badge" id="bugsTabBadge">0 Tickets</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-urls">
+        <span>⚙️ Manage URLs & Modules</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: MODULE HEALTH MONITOR -->
+    <section id="tab-health" class="tab-content active">
+
+      <!-- Quick Category Quick Filters -->
+      <div class="category-pills" id="categoryPills">
+        <button class="pill active" data-category="ALL">All Modules (12)</button>
+        <button class="pill" data-category="Company Pages">Company Pages (FCP/MDC/TDW)</button>
+        <button class="pill" data-category="PDP">PDP (Product Detail)</button>
+        <button class="pill" data-category="Directory">Directory (Dir)</button>
+        <button class="pill" data-category="Buyer Services">Buyer My Page & BMC</button>
+        <button class="pill" data-category="Vernacular">Hindi IndiaMART</button>
+        <button class="pill" data-category="Global Trade">Export & Ship with IM</button>
+        <button class="pill" data-category="Search & Discovery">Search & Lens</button>
+      </div>
+
+      <div class="table-section">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="healthSearchInput" placeholder="Search module name, page type, or URL...">
+          </div>
+
+          <div class="filters-group">
+            <select id="healthWindowFilter" class="filter-select">
+              <option value="ALL">All Execution Windows</option>
+              <option value="Morning Shift (4 AM - 6 AM)">🌅 Morning (4-6 AM)</option>
+              <option value="Afternoon Shift (1 PM - 3 PM)">☀️ Afternoon (1-3 PM)</option>
+              <option value="Evening Shift (6 PM - 9 PM)">🌆 Evening (6-9 PM)</option>
+              <option value="Night Shift (11 PM - 12 AM)">🌙 Night (11 PM-12 AM)</option>
+              <option value="Manual / Custom Run">⚡ Manual / Custom Runs</option>
+            </select>
+
+            <select id="healthStatusFilter" class="filter-select">
+              <option value="ALL">All Health States</option>
+              <option value="HEALTHY">🟢 200 OK Healthy</option>
+              <option value="DOWN">🔴 Page Down (404/5xx)</option>
+              <option value="SOFT404">🟠 Soft 404 (Page Not Found text)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Module & Page Type</th>
+                <th>Target URL</th>
+                <th>Execution Window</th>
+                <th>HTTP Status</th>
+                <th>Health Diagnostic</th>
+                <th>Response Time</th>
+                <th>Assigned QA</th>
+                <th>Last Checked</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="healthTableBody">
+              <tr>
+                <td colspan="8" class="text-center">
+                  <div class="loading-spinner">Initializing IndiaMART Module Health Check...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: BUGS LOG FEED -->
+    <section id="tab-bugs" class="tab-content">
+      <div class="table-section">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="bugsSearchInput" placeholder="Search by bug title, QA reporter, ticket #...">
+          </div>
+
+          <div class="filters-group">
+            <select id="filterAuthor" class="filter-select">
+              <option value="ALL">All QA Reporters</option>
+            </select>
+            <select id="filterPriority" class="filter-select">
+              <option value="ALL">All Priorities</option>
+              <option value="High">High / Urgent</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ticket #</th>
+                <th>Date &amp; Time</th>
+                <th>Reporter / System</th>
+                <th>Project / Module</th>
+                <th>Bug Summary</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="ticketsTableBody">
+              <tr>
+                <td colspan="8" class="text-center">
+                  <div class="loading-spinner">Loading OpenProject bug reports...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: MANAGE MODULE URLS -->
+    <section id="tab-urls" class="tab-content">
+      <div class="config-card">
+        <div class="config-card-header">
+          <h3>➕ Add / Configure IndiaMART Module URLs</h3>
+          <p>Add specific pages for your QA team (e.g. FCP Free Seller, MDC Paid Seller, TDW Client Template, PDP, Directory, etc.)</p>
+        </div>
+
+        <form id="addUrlForm" class="url-form">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="newModuleName">Module Name *</label>
+              <input type="text" id="newModuleName" placeholder="e.g. Company Page - FCP Seller" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="newCategory">Category *</label>
+              <select id="newCategory" required>
+                <option value="Company Pages">Company Pages (FCP/MDC/TDW)</option>
+                <option value="PDP">PDP (Product Detail Page)</option>
+                <option value="Directory">Directory (Dir)</option>
+                <option value="Buyer Services">Buyer Services (My Page / BMC)</option>
+                <option value="Vernacular">Vernacular (Hindi IndiaMART)</option>
+                <option value="Global Trade">Global Trade (Export / Ship with IM)</option>
+                <option value="Search & Discovery">Search & Discovery (Lens / Search)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="newUrl">Full URL to Monitor *</label>
+              <input type="url" id="newUrl" placeholder="https://www.indiamart.com/company-name/" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="newQaOwner">Assigned QA Owner *</label>
+              <input type="text" id="newQaOwner" placeholder="e.g. Shreyas (QA)" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">➕ Save Module URL</button>
+        </form>
+
+        <div class="configured-urls-list">
+          <h4>Current Monitored URLs List</h4>
+          <div id="urlListContainer" class="url-cards-grid"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Configuration Modal -->
+  <div id="configModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>⚙️ QA System Credentials & Webhooks</h2>
+        <button class="modal-close" id="closeModalBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ownerApiKey">OpenProject API Key *</label>
+          <div class="input-row">
+            <input type="password" id="ownerApiKey" placeholder="Paste your API key here..." autocomplete="off">
+            <button class="toggle-btn" id="toggleKeyBtn" type="button">👁</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ownerOpUrl">OpenProject Base URL</label>
+          <input type="text" id="ownerOpUrl" value="https://project.intermesh.net">
+        </div>
+
+        <div class="form-group">
+          <label for="ownerN8nBugLoggerUrl">n8n Bug Logger Webhook URL (qabugraise)</label>
+          <input type="text" id="ownerN8nBugLoggerUrl" value="https://imworkflow.intermesh.net/webhook/qabugraise">
+        </div>
+
+        <div class="form-group">
+          <label for="ownerN8nAuditTriggerUrl">n8n Manual Audit Webhook URL</label>
+          <input type="text" id="ownerN8nAuditTriggerUrl" value="https://imworkflow.intermesh.net/webhook/trigger-indiamart-audit">
+        </div>
+
+        <div class="status-msg" id="modalStatusMsg"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelConfigBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveConfigBtn">Save & Refresh Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Module URL Modal -->
+  <div id="editUrlModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>✏️ Edit IndiaMART Module URL</h2>
+        <button class="modal-close" id="closeEditModalBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editModuleId">
+        <div class="form-group">
+          <label for="editModuleName">Module Name *</label>
+          <input type="text" id="editModuleName" placeholder="e.g. Company Page - FCP Rank A" required>
+        </div>
+        <div class="form-group">
+          <label for="editCategory">Category *</label>
+          <select id="editCategory" required>
+            <option value="Company Pages">Company Pages (FCP/MDC/TDW)</option>
+            <option value="PDP">PDP (Product Detail Page)</option>
+            <option value="Directory">Directory (Dir)</option>
+            <option value="Buyer Services">Buyer Services</option>
+            <option value="Seller Services">Seller Services</option>
+            <option value="Vernacular">Vernacular (Hindi IndiaMART)</option>
+            <option value="Global Trade">Global Trade (Export / Ship with IM)</option>
+            <option value="Search & Discovery">Search & Discovery (Lens / Search)</option>
+            <option value="Core Portal">Core Portal</option>
+            <option value="Logistics">Logistics</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editUrl">Module URL *</label>
+          <input type="url" id="editUrl" placeholder="https://www.indiamart.com/company-name/" required>
+        </div>
+        <div class="form-group">
+          <label for="editQaOwner">Assigned QA Owner *</label>
+          <input type="text" id="editQaOwner" placeholder="e.g. FCP QA Team" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelEditModalBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveEditModalBtn">💾 Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
