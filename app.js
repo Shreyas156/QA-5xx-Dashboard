@@ -665,7 +665,7 @@
     bugsSearchInput.addEventListener("input", renderBugsTable);
     if (filterPriority) filterPriority.addEventListener("change", renderBugsTable);
 
-    runAuditBtn.addEventListener("click", runBatchHealthCheck);
+    runAuditBtn.addEventListener("click", handleAuditToggle);
     refreshBtn.addEventListener("click", () => {
       fetchScheduleSummary();
       renderModulesTable();
@@ -707,24 +707,72 @@
   }
 
   // =====================================================
-  // BATCH HEALTH CHECK & AUTOMATIC BUG LOGGER
+  // BATCH HEALTH CHECK & AUTOMATIC BUG LOGGER WITH STOP TOGGLE
   // =====================================================
+
+  let isAuditing = false;
+  let auditAbortController = null;
+
+  function handleAuditToggle() {
+    if (isAuditing) {
+      stopBatchHealthCheck();
+    } else {
+      runBatchHealthCheck();
+    }
+  }
+
+  function resetAuditButton() {
+    isAuditing = false;
+    auditAbortController = null;
+    runAuditBtn.disabled = false;
+    runAuditBtn.classList.remove("btn-stop");
+    runAuditBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </svg>
+      Run Audit Now
+    `;
+  }
+
+  function stopBatchHealthCheck() {
+    if (auditAbortController) {
+      auditAbortController.abort();
+    }
+    resetAuditButton();
+    alert("🛑 Health Audit stopped by user.");
+  }
 
   async function runBatchHealthCheck() {
     const apiKey = localStorage.getItem("im_qa_apikey") || localStorage.getItem("apiKey") || localStorage.getItem("apikey") || "";
-    runAuditBtn.disabled = true;
-    runAuditBtn.innerHTML = `⏳ Auditing ${modulesList.length} IndiaMART URLs...`;
+    isAuditing = true;
+    auditAbortController = new AbortController();
+
+    runAuditBtn.disabled = false;
+    runAuditBtn.classList.add("btn-stop");
+    runAuditBtn.innerHTML = `⏹️ STOP Audit (${modulesList.length} URLs)`;
 
     let checkedCount = 0;
     let failedModules = [];
+    let wasAborted = false;
 
-    // Try direct 100% free server audit endpoint first!
+    // Direct local server audit request with abort signal
     try {
       const resp = await fetch('/api/run-local-audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls: modulesList })
-      }).then(r => r.json()).catch(() => null);
+        body: JSON.stringify({ urls: modulesList }),
+        signal: auditAbortController.signal
+      }).then(r => r.json()).catch(err => {
+        if (err.name === 'AbortError') {
+          wasAborted = true;
+        }
+        return null;
+      });
+
+      if (wasAborted) {
+        resetAuditButton();
+        return;
+      }
 
       if (resp && resp.success && resp.results) {
         modulesList = resp.results;
@@ -732,38 +780,39 @@
         checkedCount = modulesList.length;
       }
     } catch (e) {
+      if (e.name === 'AbortError') {
+        resetAuditButton();
+        return;
+      }
       console.warn("Falling back to client audit:", e);
     }
 
-    // Also notify n8n audit webhook if configured
+    if (wasAborted) return;
+
+    // Trigger n8n webhook with abort signal support
     const n8nAuditUrl = localStorage.getItem("im_qa_n8n_audit_url") || AUDIT_TRIGGER_API;
     fetch(n8nAuditUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apikey: apiKey })
+      body: JSON.stringify({ apikey: apiKey }),
+      signal: auditAbortController.signal
     }).catch(() => {});
 
-    // Automatically trigger bug tickets for failed modules if API key is saved
+    // Automatically trigger bug tickets for failed modules
     if (failedModules.length > 0) {
       for (let fMod of failedModules) {
         triggerAutoBugForModule(fMod.id, true);
       }
     }
 
-    setTimeout(() => {
-      runAuditBtn.disabled = false;
-      runAuditBtn.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        Run Audit Now
-      `;
-      saveModulesList();
-      renderModulesTable();
-      updateMetrics();
-      renderBugsTable();
-      alert(`✅ Audit Complete across ${checkedCount || modulesList.length} IndiaMART URLs! ${failedModules.length > 0 ? `🚨 ${failedModules.length} page outages detected and auto-logged!` : '🟢 All pages Healthy.'}`);
-    }, 800);
+    saveModulesList();
+    renderModulesTable();
+    updateMetrics();
+    renderBugsTable();
+    fetchScheduleSummary();
+
+    resetAuditButton();
+    alert(`✅ Audit Complete across ${checkedCount || modulesList.length} IndiaMART URLs! ${failedModules.length > 0 ? `🚨 ${failedModules.length} page outages detected and auto-logged!` : '🟢 All pages Healthy.'}`);
   }
 
   // =====================================================
