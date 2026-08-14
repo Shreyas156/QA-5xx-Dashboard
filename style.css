@@ -870,3 +870,83 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
+.clickable-shift {
+  cursor: pointer;
+}
+
+.schedule-card.selected-shift-card {
+  border: 2px solid var(--im-blue) !important;
+  background-color: rgba(2, 77, 148, 0.12) !important;
+  box-shadow: 0 0 12px rgba(2, 77, 148, 0.35);
+}
+
+/* ACTIVE SHIFT FILTER BANNER */
+.active-shift-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(2, 77, 148, 0.2), rgba(0, 166, 153, 0.2));
+  border: 1px solid var(--im-blue);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(2, 77, 148, 0.15);
+}
+
+.banner-text {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.btn-reset-filter {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reset-filter:hover {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border-color: var(--status-red);
+}
+
+/* RESULT PILLS */
+.result-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.result-pill.pass {
+  background-color: var(--status-green-bg);
+  color: var(--status-green);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.result-pill.fail {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.result-pill.fail-soft {
+  background-color: var(--status-orange-bg);
+  color: var(--status-orange);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+

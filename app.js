@@ -589,8 +589,78 @@
     });
 
     healthSearchInput.addEventListener("input", renderModulesTable);
-    if (healthWindowFilter) healthWindowFilter.addEventListener("change", renderModulesTable);
+    if (healthWindowFilter) {
+      healthWindowFilter.addEventListener("change", () => {
+        const val = healthWindowFilter.value;
+        const banner = document.getElementById("activeShiftFilterBanner");
+        const titleEl = document.getElementById("activeShiftBannerTitle");
+        const iconEl = document.getElementById("activeShiftBannerIcon");
+        document.querySelectorAll(".schedule-card").forEach(c => c.classList.remove("selected-shift-card"));
+
+        if (val !== "ALL" && banner) {
+          banner.classList.remove("hidden");
+          if (titleEl) titleEl.textContent = val;
+          if (iconEl) {
+            if (val.includes("Morning")) iconEl.textContent = "🌅";
+            else if (val.includes("Afternoon")) iconEl.textContent = "☀️";
+            else if (val.includes("Evening")) iconEl.textContent = "🌆";
+            else if (val.includes("Night")) iconEl.textContent = "🌙";
+            else iconEl.textContent = "⚡";
+          }
+        } else if (banner) {
+          banner.classList.add("hidden");
+        }
+
+        renderModulesTable();
+      });
+    }
+
     healthStatusFilter.addEventListener("change", renderModulesTable);
+
+    // Shift Card Click Handlers (Click a shift card to view all tested URLs for that shift)
+    document.querySelectorAll(".clickable-shift").forEach(card => {
+      card.addEventListener("click", () => {
+        const shiftTag = card.getAttribute("data-shift");
+        if (!shiftTag) return;
+
+        if (healthWindowFilter) {
+          healthWindowFilter.value = shiftTag;
+        }
+
+        document.querySelectorAll(".schedule-card").forEach(c => c.classList.remove("selected-shift-card"));
+        card.classList.add("selected-shift-card");
+
+        const banner = document.getElementById("activeShiftFilterBanner");
+        const titleEl = document.getElementById("activeShiftBannerTitle");
+        const iconEl = document.getElementById("activeShiftBannerIcon");
+
+        if (banner) {
+          banner.classList.remove("hidden");
+          if (titleEl) titleEl.textContent = shiftTag;
+          if (iconEl) {
+            if (shiftTag.includes("Morning")) iconEl.textContent = "🌅";
+            else if (shiftTag.includes("Afternoon")) iconEl.textContent = "☀️";
+            else if (shiftTag.includes("Evening")) iconEl.textContent = "🌆";
+            else iconEl.textContent = "🌙";
+          }
+        }
+
+        renderModulesTable();
+        const healthSection = document.getElementById("tab-health");
+        if (healthSection) healthSection.scrollIntoView({ behavior: "smooth" });
+      });
+    });
+
+    const resetShiftFilterBtn = document.getElementById("resetShiftFilterBtn");
+    if (resetShiftFilterBtn) {
+      resetShiftFilterBtn.addEventListener("click", () => {
+        if (healthWindowFilter) healthWindowFilter.value = "ALL";
+        const banner = document.getElementById("activeShiftFilterBanner");
+        if (banner) banner.classList.add("hidden");
+        document.querySelectorAll(".schedule-card").forEach(c => c.classList.remove("selected-shift-card"));
+        renderModulesTable();
+      });
+    }
 
     bugsSearchInput.addEventListener("input", renderBugsTable);
     if (filterPriority) filterPriority.addEventListener("change", renderBugsTable);
@@ -892,11 +962,15 @@
     }
 
     healthTableBody.innerHTML = filtered.map(mod => {
-      let statusBadge = `<span class="status-badge healthy">🟢 200 OK</span>`;
+      let resultBadge = `<span class="result-pill pass">🟢 PASS</span>`;
+      let statusBadge = `<span class="status-badge healthy">200 OK</span>`;
+
       if (!mod.isHealthy && mod.isSoft404) {
-        statusBadge = `<span class="status-badge soft404">🟠 Soft 404</span>`;
+        resultBadge = `<span class="result-pill fail-soft">🟠 FAIL</span>`;
+        statusBadge = `<span class="status-badge soft404">Soft 404</span>`;
       } else if (!mod.isHealthy) {
-        statusBadge = `<span class="status-badge down">🔴 ${mod.statusCode || '5xx'} Down</span>`;
+        resultBadge = `<span class="result-pill fail">🔴 FAIL</span>`;
+        statusBadge = `<span class="status-badge down">${mod.statusCode || '5xx'} Down</span>`;
       }
 
       const resBarClass = mod.responseTimeMs > 300 ? 'slow' : '';
@@ -918,6 +992,7 @@
               ${escapeHtml(timeWindowDisplay)}
             </span>
           </td>
+          <td>${resultBadge}</td>
           <td>${statusBadge}</td>
           <td>
             <span style="font-size:0.8rem; color:${mod.isHealthy ? 'var(--text-secondary)' : (mod.isSoft404 ? 'var(--status-orange)' : 'var(--status-red)')}">
